@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Squarb settings</title>
+  <link rel="stylesheet" href="site.css">
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <img src="icons/icon-128.png" alt="">
+      <div>
+        <h1>Squarb settings</h1>
+        <p>Remap any key. Changes save as you type and apply to open tabs straight away.</p>
+      </div>
+    </div>
+  </header>
+  <main class="wrap">
+    <section class="card" aria-labelledby="prefix-h">
+      <h2 id="prefix-h">Prefix keys</h2>
+      <p class="muted">Press a prefix, then a target key. The defaults mirror VoiceOver Quick Nav, where lowercase is next and Shift is previous.</p>
+      <div class="grid" id="prefixes"></div>
+    </section>
+
+    <section class="card" aria-labelledby="targets-h">
+      <h2 id="targets-h">Target keys</h2>
+      <p class="muted">One character per key. Separate several keys with spaces, as in <code>j f</code>. Leave a field empty to unbind it.</p>
+      <table class="targets">
+        <thead><tr><th scope="col">Jumps to</th><th scope="col">Keys</th><th scope="col">Default from</th></tr></thead>
+        <tbody id="targets"></tbody>
+      </table>
+    </section>
+
+    <section class="card" aria-labelledby="behaviour-h">
+      <h2 id="behaviour-h">Behaviour</h2>
+      <div class="row">
+        <label for="timeout">Sequence timeout</label>
+        <input id="timeout" type="number" min="200" max="5000" step="100" aria-describedby="timeout-d">
+        <span id="timeout-d" class="muted">ms to wait for the second key</span>
+      </div>
+      <div class="row">
+        <input id="warnings" type="checkbox">
+        <label for="warnings">Flash "looks clickable" warnings when a jump skips over an element that isn't exposed as a control</label>
+      </div>
+    </section>
+
+    <div class="status" role="status" id="status" aria-live="polite"></div>
+    <div class="actions">
+      <button type="button" id="reset">Restore defaults</button>
+      <a href="explain.html">How Squarb decides what's a button →</a>
+    </div>
+  </main>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

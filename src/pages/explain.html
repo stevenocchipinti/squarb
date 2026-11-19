@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>How Squarb works</title>
+  <link rel="stylesheet" href="site.css">
+  <style>
+    section.card:target { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px 18px; margin: 12px 0 0; padding: 0; list-style: none; }
+    .keys li { display: flex; gap: 10px; align-items: baseline; }
+    .fix { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 640px) { .fix { grid-template-columns: 1fr; } }
+    .fix h3 { margin: 6px 0 0; font-size: 14px; }
+    .fix .bad h3 { color: var(--bad); }
+    .fix .good h3 { color: var(--ok); }
+    nav.toc { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 20px; font-size: 15px; }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <img src="icons/icon-128.png" alt="">
+      <div>
+        <h1>How Squarb works</h1>
+        <p>Keyboard quick nav, using the same roles and names a screen reader reads.</p>
+      </div>
+    </div>
+  </header>
+  <main class="wrap">
+    <nav class="toc" aria-label="On this page">
+      <a href="#welcome">Getting started</a>
+      <a href="#how">What counts as a button</a>
+      <a href="#clickable">"Looks clickable"</a>
+      <a href="#unnamed">"Unnamed"</a>
+      <a href="#heading-skip">Heading levels</a>
+      <a href="#main-landmark">Landmarks</a>
+      <a href="#frames">Frames</a>
+    </nav>
+
+    <section class="card" id="welcome">
+      <h2>Getting started</h2>
+      <p>On any page, press <kbd>]</kbd> then a letter to jump to the next match, or <kbd>[</kbd> then the letter for the previous one. Press <kbd>?</kbd> to see every key.</p>
+      <ul class="keys">
+        <li><kbd>]b</kbd> next button</li>
+        <li><kbd>]h</kbd> next heading</li>
+        <li><kbd>]1</kbd>–<kbd>]6</kbd> heading by level</li>
+        <li><kbd>]l</kbd> next link</li>
+        <li><kbd>]j</kbd> next form control</li>
+        <li><kbd>]]</kbd> repeat the last jump</li>
+        <li><kbd>\b</kbd> highlight all buttons</li>
+        <li><kbd>\\</kbd> rotor</li>
+        <li><kbd>Enter</kbd> focus it</li>
+        <li><kbd>Esc</kbd> clear</li>
+      </ul>
+      <p class="muted">A jump only moves the highlight. Focus stays where it was until you press <kbd>Enter</kbd>, so jumping to a text field never starts typing into it. Squarb ignores your keys while you're typing in a field. Press <kbd>Esc</kbd> to leave the field.</p>
+    </section>
+
+    <section class="card" id="how">
+      <h2>What counts as a button</h2>
+      <p>Squarb never looks at tag names or class names. It computes each element's <strong>role</strong> and <strong>accessible name</strong> with the same rules browsers use to build the accessibility tree. A <code>&lt;button&gt;</code>, an <code>&lt;input type="submit"&gt;</code> and a <code>&lt;div role="button"&gt;</code> are all buttons. A <code>&lt;div class="btn"&gt;</code> isn't one.</p>
+      <p>It also skips the things a screen reader skips: anything inside <code>aria-hidden="true"</code> or <code>inert</code>, anything not rendered (<code>display: none</code>, <code>hidden</code>, closed dialogs and popovers), and anything outside an open modal dialog. Visually hidden text, such as a <code>.sr-only</code> skip link, is still reachable and is labelled "visually hidden".</p>
+      <p>The upshot: if a key can't find something on your page, a screen reader user probably can't either.</p>
+    </section>
+
+    <section class="card" id="clickable">
+      <h2>"Looks clickable but has no button role"</h2>
+      <p>This element acts like a control. It has a click handler, an <code>onclick</code>, a <code>tabindex</code>, or a pointer cursor. But nothing tells assistive tech that it's a control. Screen readers announce it as plain text, voice control can't target it by name, and keyboard users often can't reach it or press it.</p>
+      <div class="fix">
+        <div class="bad">
+          <h3>Before</h3>
+<pre><code>&lt;div class="btn" onclick="save()"&gt;
+  Save
+&lt;/div&gt;</code></pre>
+        </div>
+        <div class="good">
+          <h3>After</h3>
+<pre><code>&lt;button type="button" onclick="save()"&gt;
+  Save
+&lt;/button&gt;</code></pre>
+        </div>
+      </div>
+      <p>A real <code>&lt;button&gt;</code> gives you focus, <kbd>Enter</kbd> and <kbd>Space</kbd> handling, and the right role for free. If it navigates to another page, use <code>&lt;a href&gt;</code> instead. If you really can't change the element, add <code>role="button"</code>, <code>tabindex="0"</code> and a keydown handler, but the native element is less work.</p>
+      <p class="muted">This is a heuristic. A pointer cursor on a decorative card, or a click handler used only for analytics, can trigger it. If it's wrong, it's wrong. It's there to help you spot real problems, not to score your page.</p>
+    </section>
+
+    <section class="card" id="unnamed">
+      <h2>"button (unnamed)"</h2>
+      <p>The element has the right role but no accessible name, so a screen reader says only "button". This usually happens with an icon-only control.</p>
+      <div class="fix">
+        <div class="bad">
+          <h3>Before</h3>
+<pre><code>&lt;button&gt;
+  &lt;svg&gt;…&lt;/svg&gt;
+&lt;/button&gt;</code></pre>
+        </div>
+        <div class="good">
+          <h3>After</h3>
+<pre><code>&lt;button aria-label="Close"&gt;
+  &lt;svg aria-hidden="true"&gt;…&lt;/svg&gt;
+&lt;/button&gt;</code></pre>
+        </div>
+      </div>
+      <p>Visible text is the best name, because everyone sees the same words. Otherwise use <code>aria-label</code>, <code>aria-labelledby</code>, <code>alt</code> on images, or a <code>&lt;label&gt;</code> for form fields.</p>
+    </section>
+
+    <section class="card" id="heading-skip">
+      <h2>Heading levels</h2>
+      <p>Screen reader users often skim a page by its headings, much as you skim the bold text. Going from an <code>h2</code> straight to an <code>h4</code> suggests a missing section. A page with no <code>h1</code> has no clear title. Pick levels for the outline, then style them however you like.</p>
+    </section>
+
+    <section class="card" id="main-landmark">
+      <h2>Landmarks</h2>
+      <p>Landmarks such as <code>&lt;main&gt;</code>, <code>&lt;nav&gt;</code>, <code>&lt;header&gt;</code> and <code>&lt;footer&gt;</code> let people jump past repeated content with one key (<kbd>]d</kbd> here, the Landmarks rotor in VoiceOver, <kbd>D</kbd> in NVDA). Every page should have exactly one <code>&lt;main&gt;</code>. A <code>&lt;section&gt;</code> or <code>&lt;form&gt;</code> only becomes a landmark once it has a name, for example with <code>aria-labelledby</code> pointing at its heading.</p>
+    </section>
+
+    <section class="card" id="frames">
+      <h2>Frames</h2>
+      <p>Squarb includes same-origin iframes in navigation order, as if their content were inline. It can't read cross-origin iframes, such as embedded videos, payment fields or ads, so it skips them. A screen reader can still read them.</p>
+    </section>
+
+    <section class="card" id="screen-readers">
+      <h2>Now try it with a real screen reader</h2>
+      <p><strong>VoiceOver (macOS):</strong> <kbd>Cmd-F5</kbd> turns it on. <kbd>VO</kbd> is <kbd>Control-Option</kbd> (or <kbd>Caps Lock</kbd>). <kbd>VO-Q</kbd> toggles single-key Quick Nav, and then <kbd>B</kbd>, <kbd>H</kbd>, <kbd>L</kbd>, <kbd>J</kbd>, <kbd>T</kbd>, <kbd>X</kbd>, <kbd>G</kbd> and <kbd>1</kbd>–<kbd>6</kbd> jump just like <kbd>]</kbd> + letter (add Shift to go back). <kbd>VO-U</kbd> opens the rotor.</p>
+      <p><strong>NVDA (Windows):</strong> browse mode is on by default. Press a letter alone, or Shift + letter for previous. Squarb's <kbd>e</kbd>, <kbd>c</kbd>, <kbd>r</kbd>, <kbd>d</kbd>, <kbd>i</kbd> and <kbd>f</kbd> come from NVDA. <kbd>NVDA+F7</kbd> opens the elements list.</p>
+    </section>
+  </main>
+</body>
+</html>

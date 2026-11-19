@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Squarb — keyboard quick nav",
+  "short_name": "Squarb",
+  "version": "0.1.0",
+  "description": "Jump to the next button, heading, link or field with ] and [. Uses the same roles and names screen readers use, so bad markup shows.",
+  "minimum_chrome_version": "123",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "Squarb: show keys (or press ? on the page)",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "options_page": "options.html",
+  "permissions": ["storage"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["probe.js"],
+      "run_at": "document_idle",
+      "all_frames": false,
+      "world": "MAIN"
+    }
+  ]
+}

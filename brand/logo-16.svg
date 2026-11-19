@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" role="img" aria-label="Squarb">
+  <rect width="16" height="16" rx="3.5" fill="#16122e"/>
+  <path d="M6 3H4v10h2" fill="none" stroke="#ffd23f" stroke-width="2" stroke-linecap="square"/>
+  <path d="M10 3h2v10h-2" fill="none" stroke="#ffd23f" stroke-width="2" stroke-linecap="square"/>
+  <rect x="7" y="7" width="2" height="2" fill="#b9a8ff"/>
+</svg>

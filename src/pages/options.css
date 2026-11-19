@@ -1,0 +1,33 @@
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label, .targets td:first-child { font-weight: 600; }
+input[type="text"], input[type="number"] {
+  font: 600 15px/1 ui-monospace, Menlo, Consolas, monospace;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--fg);
+  width: 100%;
+  max-width: 160px;
+}
+input[aria-invalid="true"] { border-color: var(--bad); box-shadow: 0 0 0 3px color-mix(in oklab, var(--bad) 25%, transparent); }
+.targets { width: 100%; border-collapse: collapse; }
+.targets th, .targets td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+.targets th { font-size: 13px; color: var(--muted); font-weight: 600; }
+.targets td.err { color: var(--bad); font-size: 13px; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+.row input[type="checkbox"] { width: 18px; height: 18px; }
+.status { min-height: 1.5em; margin: 8px 2px; color: var(--muted); }
+.status.bad { color: var(--bad); }
+.actions { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.actions button {
+  font: 600 15px/1 inherit;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--fg);
+  cursor: pointer;
+}
+.actions button:hover { background: var(--accent-soft); }

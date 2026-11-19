@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Squarb: keyboard quick nav that sees what screen readers see</title>
+  <meta name="description" content="A Chrome extension for jumping between buttons, headings, links and fields with ] and [. It uses the same roles and names screen readers use, so bad markup shows.">
+  <meta property="og:title" content="Squarb: keyboard quick nav">
+  <meta property="og:description" content="Jump to any button with ]b. See what a screen reader sees.">
+  <meta property="og:image" content="assets/social-card.png">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="assets/favicon-32.png" sizes="32x32">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icon-128.png">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --ink: #16122e;
+      --ink-2: #221c45;
+      --yellow: #ffd23f;
+      --violet: #7c5cff;
+      --warn: #ff7a29;
+      --bg: light-dark(#f7f6fc, #100d22);
+      --surface: light-dark(#ffffff, #1b1736);
+      --fg: light-dark(#16122e, #f2efff);
+      --muted: light-dark(#575273, #aca6cc);
+      --line: light-dark(#e4e0f5, #332d5a);
+      --accent: light-dark(#5a3df0, #b9a8ff);
+      --accent-soft: light-dark(#efeaff, #2a2450);
+      --warn-text: light-dark(#a3410a, #ffa36b);
+      --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+      font: 17px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+      accent-color: var(--accent);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-padding-top: 24px; }
+    @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+    body { margin: 0; background: var(--bg); color: var(--fg); }
+    img { max-width: 100%; height: auto; display: block; }
+    a { color: var(--accent); text-underline-offset: 3px; }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+    h1, h2, h3 { line-height: 1.15; letter-spacing: -0.015em; }
+    h2 { font-size: clamp(28px, 4vw, 38px); margin: 0 0 12px; }
+    h3 { font-size: 19px; margin: 0 0 6px; }
+    p { margin: 0 0 14px; }
+    code { font: 0.88em var(--mono); background: var(--accent-soft); padding: 1px 6px; border-radius: 5px; }
+    kbd {
+      display: inline-block;
+      min-width: 1.7em;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: var(--ink);
+      color: var(--yellow);
+      border: 1px solid #3b3370;
+      box-shadow: 0 2px 0 #0c0a1c;
+      font: 700 0.82em/1.4 var(--mono);
+      text-align: center;
+      white-space: nowrap;
+    }
+    .wrap { width: min(1120px, 100% - 32px); margin-inline: auto; }
+    .skip { position: absolute; left: 16px; top: -100px; z-index: 10; background: var(--yellow); color: var(--ink); padding: 8px 14px; border-radius: 8px; font-weight: 700; }
+    .skip:focus { top: 12px; }
+    .eyebrow { font: 700 13px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent); margin: 0 0 12px; }
+    .lede { font-size: 19px; color: var(--muted); max-width: 62ch; }
+    section { padding: 88px 0; }
+    section + section { border-top: 1px solid var(--line); }
+
+    /* ---------------------------------------------------------------- hero */
+    .hero {
+      background:
+        radial-gradient(700px 420px at 85% 10%, rgb(124 92 255 / 0.38), transparent 70%),
+        radial-gradient(520px 320px at 0% 100%, rgb(255 210 63 / 0.13), transparent 70%),
+        var(--ink);
+      color: #fff;
+      padding: 28px 0 96px;
+    }
+    .hero nav { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+    .hero nav img { height: 40px; width: auto; }
+    .hero nav ul { display: flex; gap: 22px; list-style: none; margin: 0 0 0 auto; padding: 0; flex-wrap: wrap; }
+    .hero nav a { color: #d9d3ff; text-decoration: none; font-weight: 600; font-size: 15px; }
+    .hero nav a:hover { color: #fff; text-decoration: underline; }
+    .hero :focus-visible { outline-color: var(--yellow); }
+    .hero-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 56px; align-items: center; margin-top: 72px; }
+    .hero h1 { font-size: clamp(36px, 4.6vw, 54px); margin: 0 0 20px; }
+    .hero h1 em { font-style: normal; color: var(--yellow); }
+    .hero .lede { color: #cfc8f3; }
+    .cta { display: flex; gap: 14px; flex-wrap: wrap; margin: 30px 0 22px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 13px 22px; border-radius: 12px;
+      font: 700 16px/1 inherit; text-decoration: none; cursor: pointer;
+      border: 2px solid transparent;
+    }
+    .btn.primary { background: var(--yellow); color: var(--ink); }
+    .btn.primary:hover { background: #ffe07a; }
+    .btn.ghost { color: #fff; border-color: #4a4180; background: transparent; }
+    .btn.ghost:hover { border-color: #8c7fe0; }
+    .try-hint { color: #b5aee0; font-size: 15px; }
+    .shot {
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 30px 80px rgb(0 0 0 / 0.5), 0 0 0 1px rgb(255 255 255 / 0.08);
+    }
+    .shot .bar { height: 30px; background: #ece9f7; display: flex; align-items: center; gap: 6px; padding: 0 12px; }
+    .shot .bar i { width: 10px; height: 10px; border-radius: 50%; background: #cfc9e6; }
+
+    /* ---------------------------------------------------------------- try it */
+    .try { background: var(--surface); }
+    .try-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 48px; align-items: start; }
+    .keys-list { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 10px; }
+    .keys-list li { display: flex; gap: 12px; align-items: baseline; }
+    .keys-list li span:first-child { flex: none; min-width: 92px; }
+    .playground {
+      border: 2px dashed var(--line);
+      border-radius: 18px;
+      padding: 24px;
+      background: var(--bg);
+    }
+    .playground h3 { display: flex; align-items: center; gap: 10px; }
+    .playground .pg-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 14px 0; }
+    .playground button.real, .playground .fake {
+      font: 600 15px/1 inherit; padding: 11px 16px; border-radius: 10px; border: 0; cursor: pointer;
+    }
+    .playground button.real { background: var(--accent); color: light-dark(#fff, #16122e); }
+    .playground .fake { background: var(--accent-soft); color: var(--accent); display: inline-block; }
+    .playground .icon { width: 42px; height: 42px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; color: var(--fg); }
+    .playground label { display: block; font-weight: 600; font-size: 14px; margin: 12px 0 4px; }
+    .playground input[type="text"] { width: 100%; padding: 10px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); font: inherit; }
+    .playground .note { font-size: 14px; color: var(--muted); margin: 14px 0 0; }
+    .tap { display: none; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+    .tap button { font: 700 14px var(--mono); padding: 8px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
+    @media (hover: none) { .tap { display: flex; } }
+
+    /* ---------------------------------------------------------------- how */
+    .flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 40px 0 0; padding: 0; counter-reset: step; }
+    .flow li { list-style: none; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; position: relative; }
+    .flow li::before {
+      counter-increment: step; content: counter(step);
+      display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px;
+      background: var(--ink); color: var(--yellow); font: 800 16px var(--mono); margin-bottom: 14px;
+    }
+    .flow p { color: var(--muted); font-size: 16px; margin: 0; }
+    .flow ol { padding: 0; margin: 0; display: contents; }
+    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 28px; }
+    .compare figure { min-width: 0; margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; }
+    .compare figcaption { font-weight: 700; margin-bottom: 8px; }
+    .compare pre { margin: 0; background: var(--ink); color: #eae6ff; padding: 14px 16px; border-radius: 10px; overflow-x: auto; font: 14px/1.55 var(--mono); }
+    .compare .verdict { margin: 10px 0 0; font-size: 15px; color: var(--muted); }
+    .found { color: light-dark(#127a4a, #5fd7a0); font-weight: 700; }
+    .missed { color: var(--warn-text); font-weight: 700; }
+
+    /* ---------------------------------------------------------------- features */
+    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; margin-top: 40px; }
+    .feature { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+    .feature .ic { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); margin-bottom: 14px; }
+    .feature .ic svg { width: 22px; height: 22px; }
+    .feature p { color: var(--muted); font-size: 15.5px; margin: 0; }
+
+    /* ---------------------------------------------------------------- keys table */
+    .table-wrap { overflow-x: auto; margin-top: 32px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+    table { width: 100%; border-collapse: collapse; font-size: 15.5px; min-width: 620px; }
+    th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    thead th { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); background: var(--accent-soft); }
+    tbody tr:last-child td, tbody tr:last-child th { border-bottom: 0; }
+    tbody th { font-weight: 600; }
+    .tag { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); margin-left: 6px; white-space: nowrap; }
+
+    /* ---------------------------------------------------------------- nudges */
+    .nudge-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 48px; align-items: center; }
+    .nudge-list { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 16px; }
+    .nudge-list li { padding-left: 18px; border-left: 3px solid var(--warn); }
+    .nudge-list strong { display: block; }
+    .nudge-list span { color: var(--muted); font-size: 16px; }
+
+    /* ---------------------------------------------------------------- gallery */
+    .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px; margin-top: 36px; }
+    .gallery figure { margin: 0; }
+    .gallery img { border-radius: 12px; border: 1px solid var(--line); box-shadow: 0 10px 30px rgb(22 18 46 / 0.12); }
+    .gallery figcaption { font-size: 15px; color: var(--muted); margin-top: 10px; }
+
+    /* ---------------------------------------------------------------- install */
+    .install { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+    .install pre { background: var(--ink); color: #eae6ff; padding: 18px 20px; border-radius: 14px; overflow-x: auto; font: 15px/1.7 var(--mono); margin: 0; }
+    .install pre .c { color: #8f88b8; }
+    .install ol { padding-left: 22px; margin: 0; }
+    .install li { margin-bottom: 8px; }
+
+    footer { background: var(--ink); color: #b5aee0; padding: 40px 0; font-size: 15px; }
+    footer .wrap { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+    footer img { height: 30px; width: auto; }
+    footer a { color: #d9d3ff; }
+    footer p { margin: 0; }
+
+    @media (max-width: 860px) {
+      section { padding: 64px 0; }
+      .hero-grid, .try-grid, .nudge-grid, .install, .compare { grid-template-columns: minmax(0, 1fr); }
+      .flow { grid-template-columns: 1fr; }
+      .hero nav ul { margin-left: 0; }
+      .hero-grid { margin-top: 44px; }
+    }
+    @media (forced-colors: active) {
+      kbd, .btn, .feature, .flow li { border: 1px solid CanvasText; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="hero">
+    <div class="wrap">
+      <nav aria-label="Site">
+        <a href="#top" aria-label="Squarb home"><img src="assets/wordmark-on-dark.svg" alt="Squarb" width="210" height="40"></a>
+        <ul>
+          <li><a href="#how">How it works</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#keys">Keys</a></li>
+          <li><a href="#install">Install</a></li>
+        </ul>
+      </nav>
+      <div class="hero-grid" id="top">
+        <div>
+          <h1>Jump to any button.<br><em>See what a screen reader sees.</em></h1>
+          <p class="lede">Squarb is a Chrome extension for moving around web pages from the keyboard. Press <kbd>]</kbd><kbd>b</kbd> for the next button or <kbd>[</kbd><kbd>h</kbd> for the previous heading. It finds things the way assistive tech does, so pages with poor markup show their gaps.</p>
+          <div class="cta">
+            <a class="btn primary" href="#install">Install Squarb</a>
+            <a class="btn ghost" href="#try">Try it on this page</a>
+          </div>
+          <p class="try-hint">This page runs the real thing. Press <kbd>?</kbd> to see every key.</p>
+        </div>
+        <div class="shot" aria-hidden="true">
+          <div class="bar"><i></i><i></i><i></i></div>
+          <img src="assets/screens/hero-closeup.png" alt="" width="620" height="390">
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="try" id="try" aria-labelledby="try-h">
+      <div class="wrap try-grid">
+        <div>
+          <p class="eyebrow">Try it</p>
+          <h2 id="try-h">No install needed for a first look</h2>
+          <p class="lede">The extension's code is running on this page. Keep your hands on the keyboard:</p>
+          <ul class="keys-list">
+            <li><span><kbd>]</kbd> <kbd>h</kbd></span><span>next heading. Keep pressing <kbd>]</kbd><kbd>]</kbd> to walk them.</span></li>
+            <li><span><kbd>]</kbd> <kbd>b</kbd></span><span>next button. Watch what happens near the coupon.</span></li>
+            <li><span><kbd>]</kbd> <kbd>e</kbd></span><span>next text field, then <kbd>Enter</kbd> to focus it.</span></li>
+            <li><span><kbd>\</kbd> <kbd>b</kbd></span><span>highlight every button at once.</span></li>
+            <li><span><kbd>\</kbd> <kbd>\</kbd></span><span>rotor: everything, grouped by role.</span></li>
+            <li><span><kbd>Esc</kbd></span><span>clear it all.</span></li>
+          </ul>
+        </div>
+        <div class="playground" aria-labelledby="pg-h">
+          <h3 id="pg-h">A small checkout form</h3>
+          <form aria-label="Example checkout" onsubmit="return false">
+            <label for="pg-name">Name</label>
+            <input id="pg-name" type="text" autocomplete="off">
+            <label for="pg-code">Coupon code</label>
+            <input id="pg-code" type="text" autocomplete="off">
+            <div class="pg-row">
+              <button type="button" class="icon" title="">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+              </button>
+              <div class="fake" onclick="this.textContent = 'Coupon applied'">Apply coupon</div>
+              <button type="submit" class="real">Place order</button>
+            </div>
+          </form>
+          <p class="note">Two of these controls have problems on purpose: an icon button with no name, and a <code>div</code> with a click handler. Squarb points them out.</p>
+          <div class="tap" aria-label="Keys for touch screens">
+            <button type="button" data-try="]h">]h</button>
+            <button type="button" data-try="]b">]b</button>
+            <button type="button" data-try="\b">\b</button>
+            <button type="button" data-try="\\">\\</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="how" aria-labelledby="how-h">
+      <div class="wrap">
+        <p class="eyebrow">How it works</p>
+        <h2 id="how-h">It only finds what assistive tech can find</h2>
+        <p class="lede">Browsers build an accessibility tree next to the DOM. Each node has a role, a name and some states. Screen readers, voice control and switch devices all read from it. Squarb rebuilds the parts it needs and navigates by them, and nothing else.</p>
+        <ol class="flow">
+          <li>
+            <h3>Read the page like a browser</h3>
+            <p>Walks the page in rendered order, including shadow DOM and same-origin iframes. Skips anything <code>aria-hidden</code>, <code>inert</code>, not rendered, or behind an open modal.</p>
+          </li>
+          <li>
+            <h3>Work out roles and names</h3>
+            <p>Computes each element's role and accessible name using the same rules browsers follow (via <code>dom-accessibility-api</code>, the engine behind Testing Library's <code>getByRole</code>).</p>
+          </li>
+          <li>
+            <h3>Jump by role</h3>
+            <p>Each key finds a role: <kbd>b</kbd> is <code>button</code>, <kbd>h</kbd> is <code>heading</code>, <kbd>d</kbd> is a landmark. Class names and tag names never count.</p>
+          </li>
+        </ol>
+        <div class="compare">
+          <figure>
+            <figcaption>Found by <kbd>]</kbd><kbd>b</kbd></figcaption>
+<pre><code>&lt;button&gt;Save&lt;/button&gt;
+&lt;input type="submit" value="Send"&gt;
+&lt;div role="button" tabindex="0"&gt;Edit&lt;/div&gt;</code></pre>
+            <p class="verdict"><span class="found">Buttons.</span> A screen reader announces all three as "button".</p>
+          </figure>
+          <figure>
+            <figcaption>Skipped by <kbd>]</kbd><kbd>b</kbd></figcaption>
+<pre><code>&lt;div class="btn" onclick="save()"&gt;
+  Save
+&lt;/div&gt;</code></pre>
+            <p class="verdict"><span class="missed">Not a button</span> to assistive tech. Squarb flags it as you jump past.</p>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" aria-labelledby="features-h">
+      <div class="wrap">
+        <p class="eyebrow">Features</p>
+        <h2 id="features-h">Built for power users, useful to developers</h2>
+        <div class="features">
+          <article class="feature">
+            <div class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H5v16h4M15 4h4v16h-4"/></svg></div>
+            <h3>Quick-nav keys</h3>
+            <p><kbd>]</kbd> + key for next, <kbd>[</kbd> + key for previous: buttons, headings by level, links, form fields, tables, lists, images and landmarks. <kbd>]]</kbd> repeats.</p>
+          </article>
+          <article class="feature">
+            <div class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="3"/><path d="M7 12h6"/></svg></div>
+            <h3>Highlight first, focus later</h3>
+            <p>A jump moves a highlight, not focus, so landing on a text field never starts typing into it. <kbd>Enter</kbd> focuses. On a button or link, a second <kbd>Enter</kbd> clicks it.</p>
+          </article>
+          <article class="feature">
+            <div class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg></div>
+            <h3>Highlight everything</h3>
+            <p><kbd>\</kbd> + key outlines every match and numbers it. Bare <kbd>]</kbd> and <kbd>[</kbd> then step through. Good for checking at a glance what a page exposes.</p>
+          </article>
+          <article class="feature">
+            <div class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h13"/></svg></div>
+            <h3>Rotor</h3>
+            <p><kbd>\</kbd><kbd>\</kbd> lists every heading, link, button, field, landmark, table and image with its accessible name. Type to filter. It's modelled on VoiceOver's rotor.</p>
+          </article>
+          <article class="feature">
+            <div class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17.5v.5"/></svg></div>
+            <h3>Gentle accessibility nudges</h3>
+            <p>Clickable <code>div</code>s, unnamed icon buttons, skipped heading levels and a missing <code>main</code> landmark are flagged, with a short explanation of why each one matters.</p>
+          </article>
+          <article class="feature">
+            <div class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="3"/><rect x="8" y="9" width="8" height="6" rx="1.5"/></svg></div>
+            <h3>Shadow DOM and iframes</h3>
+            <p>Web components, slotted content and same-origin iframes are walked in the order they're rendered, the order a screen reader reads them.</p>
+          </article>
+          <article class="feature">
+            <div class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg></div>
+            <h3>Fast on huge pages</h3>
+            <p>On a 128,000-element page, the index builds in about 60&nbsp;ms on your first keypress. After that, page changes are patched in under a millisecond. Names are only computed for what's on screen.</p>
+          </article>
+          <article class="feature">
+            <div class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></div>
+            <h3>Yours to remap</h3>
+            <p>Every key can be changed on the options page, and conflicts are caught before saving. It also stays out of the way: no keys are taken while you type, and <kbd>Ctrl</kbd>/<kbd>⌘</kbd>/<kbd>Alt</kbd> shortcuts always reach the page.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="keys" aria-labelledby="keys-h">
+      <div class="wrap">
+        <p class="eyebrow">Keys</p>
+        <h2 id="keys-h">Learn once, use with a screen reader</h2>
+        <p class="lede">The letters copy screen reader quick nav: VoiceOver's where it has one, NVDA's for the rest. When you test with the real thing, your fingers already know where to go.</p>
+        <div class="table-wrap">
+          <table>
+            <caption class="visually-hidden" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Squarb keys and their screen reader equivalents</caption>
+            <thead>
+              <tr><th scope="col">Squarb</th><th scope="col">Goes to</th><th scope="col">VoiceOver (Quick Nav on)</th><th scope="col">NVDA</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row"><kbd>]b</kbd> <kbd>[b</kbd></th><td>Button</td><td><kbd>B</kbd> / <kbd>Shift-B</kbd></td><td><kbd>B</kbd></td></tr>
+              <tr><th scope="row"><kbd>]h</kbd> <kbd>[h</kbd></th><td>Heading</td><td><kbd>H</kbd></td><td><kbd>H</kbd></td></tr>
+              <tr><th scope="row"><kbd>]1</kbd>–<kbd>]6</kbd></th><td>Heading at level 1–6</td><td><kbd>1</kbd>–<kbd>6</kbd></td><td><kbd>1</kbd>–<kbd>6</kbd></td></tr>
+              <tr><th scope="row"><kbd>]l</kbd></th><td>Link</td><td><kbd>L</kbd></td><td><kbd>K</kbd></td></tr>
+              <tr><th scope="row"><kbd>]j</kbd> <kbd>]f</kbd></th><td>Form control</td><td><kbd>J</kbd></td><td><kbd>F</kbd></td></tr>
+              <tr><th scope="row"><kbd>]t</kbd></th><td>Table or grid</td><td><kbd>T</kbd></td><td><kbd>T</kbd></td></tr>
+              <tr><th scope="row"><kbd>]x</kbd></th><td>List</td><td><kbd>X</kbd></td><td><kbd>L</kbd></td></tr>
+              <tr><th scope="row"><kbd>]g</kbd></th><td>Image</td><td><kbd>G</kbd></td><td><kbd>G</kbd></td></tr>
+              <tr><th scope="row"><kbd>]e</kbd><span class="tag">NVDA</span></th><td>Text field</td><td>Rotor → Form Controls</td><td><kbd>E</kbd></td></tr>
+              <tr><th scope="row"><kbd>]c</kbd><span class="tag">NVDA</span></th><td>Combo box</td><td>Rotor → Form Controls</td><td><kbd>C</kbd></td></tr>
+              <tr><th scope="row"><kbd>]r</kbd><span class="tag">NVDA</span></th><td>Radio button</td><td>Rotor → Form Controls</td><td><kbd>R</kbd></td></tr>
+              <tr><th scope="row"><kbd>]d</kbd><span class="tag">NVDA</span></th><td>Landmark</td><td>Rotor → Landmarks</td><td><kbd>D</kbd></td></tr>
+              <tr><th scope="row"><kbd>]i</kbd><span class="tag">NVDA</span></th><td>List item</td><td>Interact with the list</td><td><kbd>I</kbd></td></tr>
+              <tr><th scope="row"><kbd>\\</kbd></th><td>Rotor / element list</td><td><kbd>VO-U</kbd></td><td><kbd>NVDA+F7</kbd></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="lede" style="margin-top:20px;font-size:16px">VoiceOver: <kbd>Cmd-F5</kbd> turns it on, and <kbd>VO-Q</kbd> toggles single-key Quick Nav (<kbd>VO</kbd> is <kbd>Control-Option</kbd> or <kbd>Caps Lock</kbd>). NVDA uses single letters in browse mode by default. With both, Shift + letter goes to the previous one.</p>
+      </div>
+    </section>
+
+    <section id="nudges" aria-labelledby="nudges-h">
+      <div class="wrap nudge-grid">
+        <div>
+          <p class="eyebrow">For developers</p>
+          <h2 id="nudges-h">Your site, through assistive tech's eyes</h2>
+          <p class="lede">If <kbd>]</kbd><kbd>b</kbd> can't reach a control on your site, a screen reader user probably can't either. Squarb tells you why, briefly and without scolding.</p>
+          <ul class="nudge-list">
+            <li><strong>"Looks clickable, but has no button role"</strong><span>It has a click handler, an <code>onclick</code>, a <code>tabindex</code> or a pointer cursor, but no role. Usually the fix is a real <code>&lt;button&gt;</code>.</span></li>
+            <li><strong>"button (unnamed)"</strong><span>An icon-only control a screen reader can only announce as "button". Add visible text or an <code>aria-label</code>.</span></li>
+            <li><strong>Page issues in the rotor</strong><span>Skipped heading levels, a missing or duplicate <code>main</code> landmark, images without <code>alt</code>, and cross-origin frames that couldn't be checked.</span></li>
+          </ul>
+        </div>
+        <img src="assets/screens/5-issues.png" alt="The Squarb rotor open on its Issues tab, listing an unnamed button, a clickable div with no button role, an image with no name and a heading level jump from 2 to 4." width="1280" height="800" loading="lazy" style="border-radius:14px;border:1px solid var(--line)">
+      </div>
+    </section>
+
+    <section id="gallery" aria-labelledby="gallery-h">
+      <div class="wrap">
+        <p class="eyebrow">In action</p>
+        <h2 id="gallery-h">What it looks like</h2>
+        <div class="gallery">
+          <figure>
+            <img src="assets/screens/1-jump-to-button.png" alt="A checkout page with the Place order button outlined in yellow and a label reading: button, Place order." width="1280" height="800" loading="lazy">
+            <figcaption>A jump shows the element's computed role and accessible name.</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/screens/3-highlight-all.png" alt="Every form field on a checkout page outlined and numbered, with the first text field highlighted." width="1280" height="800" loading="lazy">
+            <figcaption>Highlight mode outlines every match: here, all 7 form controls.</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/screens/4-rotor-dark.png" alt="The rotor in dark mode on its Buttons tab, listing one unnamed button followed by Back, Place order, Join and Start chat." width="1280" height="800" loading="lazy">
+            <figcaption>The rotor follows your system's light or dark theme.</figcaption>
+          </figure>
+          <figure>
+            <img src="assets/screens/6-help.png" alt="The help overlay listing each Squarb key with its VoiceOver and NVDA equivalent." width="1280" height="800" loading="lazy">
+            <figcaption><kbd>?</kbd> shows a cheat sheet mapped to VoiceOver and NVDA.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="install" aria-labelledby="install-h">
+      <div class="wrap install">
+        <div>
+          <p class="eyebrow">Install</p>
+          <h2 id="install-h">Get Squarb</h2>
+          <p class="lede">Squarb isn't in the Chrome Web Store yet. You can build it from source in about a minute.</p>
+          <ol>
+            <li>Clone the <a data-repo="" href="#install">repository</a> and run the commands shown here.</li>
+            <li>Open <code>chrome://extensions</code> and turn on <strong>Developer mode</strong>.</li>
+            <li>Choose <strong>Load unpacked</strong> and pick the <code>dist/</code> folder.</li>
+            <li>Open any page and press <kbd>?</kbd>.</li>
+          </ol>
+        </div>
+<pre aria-label="Build commands"><code><span class="c"># Node 20+</span>
+npm install
+npm run brand   <span class="c"># icons</span>
+npm run build   <span class="c"># → dist/</span>
+
+<span class="c"># optional</span>
+npm test
+npm run test:e2e
+npm run bench</code></pre>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <img src="assets/logo.svg" alt="" width="30" height="30">
+      <p>Squarb · keyboard quick nav built on accessibility semantics · <a data-repo="" href="#install">Source on GitHub</a></p>
+    </div>
+  </footer>
+
+  <script src="assets/squarb-demo.js" defer></script>
+</body>
+</html>

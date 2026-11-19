@@ -1,0 +1,33 @@
+{
+  "name": "squarb",
+  "version": "0.1.0",
+  "description": "Keyboard quick-nav for any web page, driven by the same roles and names screen readers use.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch",
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "test:e2e": "npm run build && playwright test",
+    "bench": "npm run build && node scripts/bench.mjs",
+    "brand": "node scripts/brand.mjs",
+    "zip": "npm run build && cd dist && zip -qr ../squarb.zip .",
+    "screenshots": "npm run build && node scripts/screenshots.mjs",
+    "site": "node scripts/site.mjs"
+  },
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/chrome": "^0.3.7",
+    "@types/node": "^26.6.6",
+    "esbuild": "^0.28.2",
+    "jsdom": "^31.0.1",
+    "opentype.js": "^2.0.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  },
+  "dependencies": {
+    "dom-accessibility-api": "^0.7.1"
+  },
+  "private": true
+}
