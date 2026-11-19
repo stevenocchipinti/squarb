@@ -8,12 +8,15 @@ export interface LabelInfo {
   name: string;
   /** Interactive role with no accessible name. */
   unnamed: boolean;
+  /** Looks clickable but isn't exposed as a control. */
+  fake?: boolean;
   tags: { text: string; warn?: boolean }[];
 }
 
 export interface AllItem {
   el: Element;
   unnamed: boolean;
+  fake?: boolean;
 }
 
 export interface WarnItem {
@@ -179,7 +182,7 @@ export class Overlay {
     const c = this.current!;
     const { info } = c;
     this.label.replaceChildren();
-    this.label.className = "label current" + (info.unnamed ? " unnamed" : "");
+    this.label.className = "label current" + (info.unnamed ? " unnamed" : "") + (info.fake ? " fake" : "");
     this.label.append(h("span", { class: "role" }, info.role));
     if (info.unnamed) this.label.append(h("span", { class: "name missing" }, "(unnamed)"));
     else if (info.name) this.label.append(h("span", { class: "name" }, info.name));
@@ -193,6 +196,7 @@ export class Overlay {
       this.label.append(why);
     }
     this.ring.classList.toggle("unnamed", info.unnamed);
+    this.ring.classList.toggle("fake", !!info.fake);
   }
 
   // ---------------------------------------------------------------- all
@@ -324,7 +328,7 @@ export class Overlay {
         if (!b) continue;
         const { box } = b;
         if (box.top + box.height < -50 || box.top > vh + 50) continue;
-        const ring = h("div", { class: "ring all" + (it.unnamed ? " unnamed" : "") });
+        const ring = h("div", { class: "ring all" + (it.unnamed ? " unnamed" : "") + (it.fake ? " fake" : "") });
         this.place(ring, box, 2);
         // Number straddles the top-right corner, clear of left-aligned field labels.
         const badge = h("div", { class: "badge" }, String(i + 1));

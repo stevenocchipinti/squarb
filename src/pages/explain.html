@@ -48,10 +48,11 @@
         <li><kbd>]1</kbd>–<kbd>]6</kbd> heading by level</li>
         <li><kbd>]l</kbd> next link</li>
         <li><kbd>]j</kbd> next form control</li>
+        <li><kbd>]B</kbd> next button or <a href="#clickable">look-alike</a></li>
         <li><kbd>]]</kbd> repeat the last jump</li>
         <li><kbd>\b</kbd> highlight all buttons</li>
         <li><kbd>\\</kbd> rotor</li>
-        <li><kbd>Enter</kbd> focus it</li>
+        <li><kbd>Enter</kbd> focus it (clicks a look-alike)</li>
         <li><kbd>Esc</kbd> clear</li>
       </ul>
       <p class="muted">A jump only moves the highlight. Focus stays where it was until you press <kbd>Enter</kbd>, so jumping to a text field never starts typing into it. Squarb ignores your keys while you're typing in a field. Press <kbd>Esc</kbd> to leave the field.</p>
@@ -82,6 +83,7 @@
         </div>
       </div>
       <p>A real <code>&lt;button&gt;</code> gives you focus, <kbd>Enter</kbd> and <kbd>Space</kbd> handling, and the right role for free. If it navigates to another page, use <code>&lt;a href&gt;</code> instead. If you really can't change the element, add <code>role="button"</code>, <code>tabindex="0"</code> and a keydown handler, but the native element is less work.</p>
+      <p><strong>Need to use it anyway?</strong> Press uppercase <kbd>]</kbd><kbd>B</kbd> (or <kbd>]</kbd><kbd>L</kbd>). It stops on real buttons and on look-alikes like this one, and <kbd>Enter</kbd> clicks a look-alike for you. Plain <kbd>]</kbd><kbd>b</kbd> skips it on purpose, because that's what a screen reader user gets.</p>
       <p class="muted">This is a heuristic. A pointer cursor on a decorative card, or a click handler used only for analytics, can trigger it. If it's wrong, it's wrong. It's there to help you spot real problems, not to score your page.</p>
     </section>
 

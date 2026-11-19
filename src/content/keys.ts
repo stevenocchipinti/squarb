@@ -1,12 +1,12 @@
 import { buildKeyLookup, type Settings } from "../shared/settings";
-import type { TargetId } from "../shared/targets";
+import { LOOSE_TARGETS, type TargetId } from "../shared/targets";
 
 export type Dir = 1 | -1;
 
 export type Action =
-  | { type: "jump"; target: TargetId; dir: Dir }
+  | { type: "jump"; target: TargetId; dir: Dir; loose?: boolean }
   | { type: "repeat"; dir: Dir }
-  | { type: "highlightAll"; target: TargetId }
+  | { type: "highlightAll"; target: TargetId; loose?: boolean }
   | { type: "step"; dir: Dir }
   | { type: "rotor" }
   | { type: "help" }
@@ -61,8 +61,19 @@ export class KeySequencer {
     if (this.pending && this.now() - this.pending.at > this.settings.sequenceTimeoutMs) this.pending = null;
   }
 
-  private target(key: string): TargetId | undefined {
-    return this.lookup.get(key) ?? this.lookup.get(key.toLowerCase());
+  /**
+   * The target for a key. An uppercase letter that isn't bound in its own
+   * right is the "loose" version of its lowercase binding (like Vim's W vs w):
+   * for buttons and links it also takes in things that only look clickable.
+   */
+  private target(key: string): { target: TargetId; loose: boolean } | undefined {
+    const exact = this.lookup.get(key);
+    if (exact) return { target: exact, loose: false };
+    const lower = key.toLowerCase();
+    if (lower === key) return undefined;
+    const t = this.lookup.get(lower);
+    if (!t) return undefined;
+    return { target: t, loose: LOOSE_TARGETS.has(t) };
   }
 
   feed(key: string, ctx: KeyContext): Action | null {
@@ -79,8 +90,9 @@ export class KeySequencer {
       if (p === "highlight" && key === s.highlightKey) return { type: "rotor" };
       const t = this.target(key);
       if (t) {
-        if (p === "highlight") return { type: "highlightAll", target: t };
-        return { type: "jump", target: t, dir: p === "next" ? 1 : -1 };
+        const loose = t.loose ? { loose: true } : {};
+        if (p === "highlight") return { type: "highlightAll", target: t.target, ...loose };
+        return { type: "jump", target: t.target, dir: p === "next" ? 1 : -1, ...loose };
       }
       return { type: "unbound", sequence: this.charFor(p) + key };
     }

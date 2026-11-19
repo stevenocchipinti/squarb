@@ -21,13 +21,14 @@
   <main class="wrap">
     <section class="card" aria-labelledby="prefix-h">
       <h2 id="prefix-h">Prefix keys</h2>
-      <p class="muted">Press a prefix, then a target key. The defaults mirror VoiceOver Quick Nav, where lowercase is next and Shift is previous.</p>
+      <p class="muted">Press a prefix, then a target key. The defaults use brackets for direction: <kbd>]</kbd> next, <kbd>[</kbd> previous.</p>
       <div class="grid" id="prefixes"></div>
     </section>
 
     <section class="card" aria-labelledby="targets-h">
       <h2 id="targets-h">Target keys</h2>
       <p class="muted">One character per key. Separate several keys with spaces, as in <code>j f</code>. Leave a field empty to unbind it.</p>
+      <p class="muted">The uppercase version of the button and link keys is the loose variant (<code>]B</code>, <code>]L</code>): it also stops on elements that only look clickable. It follows your binding, so if buttons are on <code>u</code>, <code>]U</code> is the loose one. If you bind an uppercase key here, your binding wins.</p>
       <table class="targets">
         <thead><tr><th scope="col">Jumps to</th><th scope="col">Keys</th><th scope="col">Default from</th></tr></thead>
         <tbody id="targets"></tbody>

@@ -4,7 +4,7 @@
 
 Squarb is a Chrome extension (MV3) for keyboard quick navigation on any page. Press `]b` for the next button, `[h` for the previous heading, and so on.
 
-It finds things using only **computed ARIA roles and accessible names**, the same data a screen reader uses. On a page with good markup it's a fast power-user tool. On a page with poor markup it shows the problems: clickable `div`s get flagged as you skip past them, and an icon button with no label shows up as `button (unnamed)`.
+It finds things using only **computed ARIA roles and accessible names**, the same data a screen reader uses. On a page with good markup it's a fast power-user tool. On a page with poor markup it shows the problems: clickable `div`s get flagged as you skip past them, and an icon button with no label shows up as `button (unnamed)`. If you still need to use one of those clickable `div`s, uppercase `]B` stops on it and `Enter` clicks it.
 
 The keys mirror screen reader quick nav, VoiceOver's letters first and NVDA's for the extras, so what you learn here works when you test with a real screen reader.
 
@@ -40,16 +40,20 @@ Then open `chrome://extensions`, turn on Developer mode, choose **Load unpacked*
 | Key | Does |
 |---|---|
 | `]]` / `[[` | repeat the last jump |
+| `]B` / `]L` (uppercase) | buttons or links **plus** things that only look clickable, such as a `<div onclick>`. `Enter` on one of those clicks it for you. Also works with `[` and `\` |
 | `\` + key | highlight every match; then bare `]` / `[` step through them |
 | `\\` | rotor: every element grouped by role, with an **Issues** tab |
-| `Enter` | focus the highlighted element (press again to activate it) |
+| `Enter` | focus the highlighted element (press again to activate it). On a look-alike reached with `]B`, it clicks straight away |
 | `Esc` | clear; inside a text field, leave the field |
 | `?` | cheat sheet, with the VoiceOver and NVDA equivalents |
 
-You can remap every key on the options page.
+You can remap every key on the options page. The uppercase variant follows the lowercase key, so if you rebind buttons to `u`, `]U` is the loose version. If you bind an uppercase key to something else, that binding wins.
+
+Lowercase keys show the page the way a screen reader sees it. Uppercase is the "I just need to get this done" mode, like Vim's `w` and `W`: same motion, looser idea of what counts.
 
 **Rules Squarb follows**
 - A jump moves a highlight, not focus. Focus only moves when you press Enter, so jumping to a text field never starts typing into it.
+- Look-alikes (from `]B`, `]L`, `\B` or the rotor's Issues tab) can't usefully take focus, so Enter plays a real mouse sequence on them instead (`pointerdown` → `mousedown` → `pointerup` → `mouseup` → `click`), which fires framework handlers too.
 - No key is intercepted while you're typing in an input, textarea, select, contenteditable, or textbox/searchbox/combobox.
 - Ctrl, Meta and Alt combinations always reach the page.
 
@@ -83,7 +87,7 @@ src/
 ```sh
 npm test            # vitest + jsdom: roles, exclusion, shadow DOM, iframes, patching, keys, lint
 npm run test:e2e    # Playwright loads dist/ into Chromium: key sequences, passthrough, Enter focus,
-                    # rotor, help, warnings, and a CDP Accessibility.queryAXTree cross-check
+                    # rotor, help, warnings, ]B look-alikes + Enter-to-click, and a CDP Accessibility.queryAXTree cross-check
 npm run bench       # synthetic 128k-element "PR diff" page; or pass URLs: npm run bench -- <url>…
 ```
 

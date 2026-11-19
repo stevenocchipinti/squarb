@@ -27,6 +27,27 @@ describe("KeySequencer", () => {
     expect(s.feed("f", ctx)).toEqual({ type: "jump", target: "formControl", dir: 1 });
   });
 
+  it("uppercase B/L are the loose variants; other letters just alias", () => {
+    const { s } = seq();
+    s.feed("]", ctx);
+    s.feed("Shift", ctx);
+    expect(s.feed("B", ctx)).toEqual({ type: "jump", target: "button", dir: 1, loose: true });
+    s.feed("[", ctx);
+    expect(s.feed("L", ctx)).toEqual({ type: "jump", target: "link", dir: -1, loose: true });
+    s.feed("\\", ctx);
+    expect(s.feed("B", ctx)).toEqual({ type: "highlightAll", target: "button", loose: true });
+    s.feed("]", ctx);
+    expect(s.feed("H", ctx)).toEqual({ type: "jump", target: "heading", dir: 1 });
+  });
+
+  it("an uppercase key bound in its own right wins over the loose variant", () => {
+    const settings = structuredClone(DEFAULT_SETTINGS);
+    settings.targetKeys.table = ["B"];
+    const s = new KeySequencer(settings, () => 0);
+    s.feed("]", ctx);
+    expect(s.feed("B", ctx)).toEqual({ type: "jump", target: "table", dir: 1 });
+  });
+
   it("]] and [[ repeat", () => {
     const { s } = seq();
     s.feed("]", ctx);

@@ -127,6 +127,37 @@ test("]b over a clickable div flashes a warning", async ({ page }) => {
   await expect(page.locator("squarb-ui .label.warn")).toContainText("Looks clickable (has an onclick handler) but has no button role");
 });
 
+test("]B also stops on look-alike buttons, and Enter clicks them", async ({ page }) => {
+  await keys(page, "]b]]"); // Back
+  expect(await label(page)).toBe("button Back");
+  await keys(page, "]B");
+  await expect(page.locator("squarb-ui .label.current.fake")).toBeVisible();
+  expect(await label(page)).toBe("div, not a button Apply coupon Enter clicks Why?");
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#coupon")).toHaveText("Coupon applied");
+  await expect(page.locator("squarb-ui .toast")).toContainText("Squarb clicked it for you");
+  // ]] keeps the loose mode; plain ]b skips the fake again.
+  await keys(page, "]]");
+  expect(await label(page)).toBe("button Place order");
+  await keys(page, "[b");
+  expect(await label(page)).toBe("button Back");
+});
+
+test("\\B highlights buttons plus look-alikes", async ({ page }) => {
+  await keys(page, "\\B");
+  await expect(page.locator("squarb-ui .toast")).toContainText("5 buttons (1 unnamed, + 1 look-alike)");
+  await expect.poll(() => page.locator("squarb-ui .ring.all.fake").count()).toBe(1);
+});
+
+test("choosing a look-alike in the rotor puts the cursor on it", async ({ page }) => {
+  await keys(page, "\\\\");
+  await page.locator("squarb-ui [role=tab]", { hasText: "Issues" }).click();
+  await page.locator("squarb-ui [role=option]", { hasText: "Looks clickable" }).click();
+  await expect(page.locator("squarb-ui .label.current.fake")).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#coupon")).toHaveText("Coupon applied");
+});
+
 test("rotor lists elements by role, filters, and jumps", async ({ page }) => {
   await keys(page, "\\\\");
   const rotor = page.locator('squarb-ui [role="dialog"]');

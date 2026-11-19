@@ -250,6 +250,7 @@
             <li><span><kbd>]</kbd> <kbd>h</kbd></span><span>next heading. Keep pressing <kbd>]</kbd><kbd>]</kbd> to walk them.</span></li>
             <li><span><kbd>]</kbd> <kbd>b</kbd></span><span>next button. Watch what happens near the coupon.</span></li>
             <li><span><kbd>]</kbd> <kbd>e</kbd></span><span>next text field, then <kbd>Enter</kbd> to focus it.</span></li>
+            <li><span><kbd>]</kbd> <kbd>B</kbd></span><span>uppercase: also stops on the fake coupon button. <kbd>Enter</kbd> clicks it.</span></li>
             <li><span><kbd>\</kbd> <kbd>b</kbd></span><span>highlight every button at once.</span></li>
             <li><span><kbd>\</kbd> <kbd>\</kbd></span><span>rotor: everything, grouped by role.</span></li>
             <li><span><kbd>Esc</kbd></span><span>clear it all.</span></li>
@@ -332,7 +333,7 @@
           <article class="feature">
             <div class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="3"/><path d="M7 12h6"/></svg></div>
             <h3>Highlight first, focus later</h3>
-            <p>A jump moves a highlight, not focus, so landing on a text field never starts typing into it. <kbd>Enter</kbd> focuses. On a button or link, a second <kbd>Enter</kbd> clicks it.</p>
+            <p>A jump moves a highlight, not focus, so landing on a text field never starts typing into it. <kbd>Enter</kbd> focuses. On a button or link, a second <kbd>Enter</kbd> clicks it. On a look-alike, which can't really take focus, <kbd>Enter</kbd> clicks it straight away.</p>
           </article>
           <article class="feature">
             <div class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg></div>
@@ -347,7 +348,7 @@
           <article class="feature">
             <div class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17.5v.5"/></svg></div>
             <h3>Gentle accessibility nudges</h3>
-            <p>Clickable <code>div</code>s, unnamed icon buttons, skipped heading levels and a missing <code>main</code> landmark are flagged, with a short explanation of why each one matters.</p>
+            <p>Clickable <code>div</code>s, unnamed icon buttons, skipped heading levels and a missing <code>main</code> landmark are flagged, with a short explanation of why each one matters. Uppercase <kbd>]</kbd><kbd>B</kbd> still gets you to the clickable <code>div</code>s when you need them.</p>
           </article>
           <article class="feature">
             <div class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="3"/><rect x="8" y="9" width="8" height="6" rx="1.5"/></svg></div>
@@ -383,6 +384,7 @@
               <tr><th scope="row"><kbd>]b</kbd> <kbd>[b</kbd></th><td>Button</td><td><kbd>B</kbd> / <kbd>Shift-B</kbd></td><td><kbd>B</kbd></td></tr>
               <tr><th scope="row"><kbd>]h</kbd> <kbd>[h</kbd></th><td>Heading</td><td><kbd>H</kbd></td><td><kbd>H</kbd></td></tr>
               <tr><th scope="row"><kbd>]1</kbd>–<kbd>]6</kbd></th><td>Heading at level 1–6</td><td><kbd>1</kbd>–<kbd>6</kbd></td><td><kbd>1</kbd>–<kbd>6</kbd></td></tr>
+              <tr><th scope="row"><kbd>]B</kbd> <kbd>]L</kbd></th><td>Button or link, plus things that only look clickable (<kbd>Enter</kbd> clicks them). Also <kbd>[B</kbd>, <kbd>\B</kbd></td><td>Not reachable</td><td>Not reachable</td></tr>
               <tr><th scope="row"><kbd>]l</kbd></th><td>Link</td><td><kbd>L</kbd></td><td><kbd>K</kbd></td></tr>
               <tr><th scope="row"><kbd>]j</kbd> <kbd>]f</kbd></th><td>Form control</td><td><kbd>J</kbd></td><td><kbd>F</kbd></td></tr>
               <tr><th scope="row"><kbd>]t</kbd></th><td>Table or grid</td><td><kbd>T</kbd></td><td><kbd>T</kbd></td></tr>
@@ -397,7 +399,7 @@
             </tbody>
           </table>
         </div>
-        <p class="lede" style="margin-top:20px;font-size:16px">VoiceOver: <kbd>Cmd-F5</kbd> turns it on, and <kbd>VO-Q</kbd> toggles single-key Quick Nav (<kbd>VO</kbd> is <kbd>Control-Option</kbd> or <kbd>Caps Lock</kbd>). NVDA uses single letters in browse mode by default. With both, Shift + letter goes to the previous one.</p>
+        <p class="lede" style="margin-top:20px;font-size:16px">VoiceOver: <kbd>Cmd-F5</kbd> turns it on, and <kbd>VO-Q</kbd> toggles single-key Quick Nav (<kbd>VO</kbd> is <kbd>Control-Option</kbd> or <kbd>Caps Lock</kbd>). NVDA uses single letters in browse mode by default. With both, Shift + letter goes to the previous one. Squarb already has <kbd>[</kbd> for that, so its uppercase letters mean the loose variant instead.</p>
       </div>
     </section>
 
@@ -409,6 +411,7 @@
           <p class="lede">If <kbd>]</kbd><kbd>b</kbd> can't reach a control on your site, a screen reader user probably can't either. Squarb tells you why, briefly and without scolding.</p>
           <ul class="nudge-list">
             <li><strong>"Looks clickable, but has no button role"</strong><span>It has a click handler, an <code>onclick</code>, a <code>tabindex</code> or a pointer cursor, but no role. Usually the fix is a real <code>&lt;button&gt;</code>.</span></li>
+            <li><strong>Still need to click it?</strong><span>Uppercase <kbd>]</kbd><kbd>B</kbd> stops on the look-alikes too, and <kbd>Enter</kbd> clicks them for you. Lowercase stays honest, uppercase gets the job done.</span></li>
             <li><strong>"button (unnamed)"</strong><span>An icon-only control a screen reader can only announce as "button". Add visible text or an <code>aria-label</code>.</span></li>
             <li><strong>Page issues in the rotor</strong><span>Skipped heading levels, a missing or duplicate <code>main</code> landmark, images without <code>alt</code>, and cross-origin frames that couldn't be checked.</span></li>
           </ul>

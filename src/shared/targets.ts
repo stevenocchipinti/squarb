@@ -254,3 +254,9 @@ export const INTERACTIVE_ROLES: ReadonlySet<string> = new Set([
   "gridcell",
   ...FORM_CONTROL_ROLES,
 ]);
+
+/**
+ * Targets with an uppercase "loose" variant (]B, ]L): real matches plus
+ * elements that look clickable but expose no role.
+ */
+export const LOOSE_TARGETS: ReadonlySet<TargetId> = new Set<TargetId>(["button", "link"]);

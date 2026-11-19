@@ -4,8 +4,8 @@ import { entryMatches, isNavigable, RoleIndex, topModal, type Entry } from "./a1
 import { collectIssues, roleLabel, runHandlerProbe, scanClickables, suspectMessage, type Suspect } from "./a11y/lint";
 import { accessibleName, displayName, truncate } from "./a11y/names";
 import { computeRole, elementStates, headingLevel, isContentEditable } from "./a11y/roles";
-import { compareFlat, deepActiveElement } from "./a11y/tree";
-import { isVisuallyHidden, viewportRect, visibleAnchor } from "./a11y/visibility";
+import { compareFlat, deepActiveElement, flatContains } from "./a11y/tree";
+import { isRendered, isVisuallyHidden, viewportRect, visibleAnchor } from "./a11y/visibility";
 import { KeySequencer, type Action, type Dir } from "./keys";
 import { Help } from "./ui/help";
 import { Overlay, type LabelInfo } from "./ui/overlay";
@@ -52,8 +52,11 @@ export class Controller {
   private cursor: Element | null = null;
   /** Where the user last clicked or tabbed to; next jump starts there. */
   private startHint: Element | null = null;
-  private last: { target: TargetId; dir: Dir } | null = null;
-  private mode: { target: TargetId } | null = null;
+  private last: { target: TargetId; dir: Dir; loose: boolean } | null = null;
+  private mode: { target: TargetId; loose: boolean } | null = null;
+  /** Set when the cursor is on something that only looks clickable. */
+  private cursorSuspect: Suspect | null = null;
+  private selfClick = false;
   private suspects: Suspect[] = [];
   private suspectsStale = true;
   private scanTimer = 0;
@@ -128,7 +131,7 @@ export class Controller {
     win.addEventListener(
       "pointerdown",
       (e) => {
-        if (this._overlay?.isOwnEvent(e)) return;
+        if (this.selfClick || this._overlay?.isOwnEvent(e)) return;
         const t = e.composedPath()[0];
         if (t instanceof (win as typeof window).Element || (t as Node)?.nodeType === 1) {
           this.startHint = t as Element;
@@ -210,19 +213,21 @@ export class Controller {
       case "pending":
         this.showPending(action.prefix);
         break;
-      case "jump":
-        this.last = { target: action.target, dir: action.dir };
-        this.jump(action.target, action.dir);
+      case "jump": {
+        const loose = !!action.loose;
+        this.last = { target: action.target, dir: action.dir, loose };
+        this.jump(action.target, action.dir, loose);
         break;
+      }
       case "repeat":
-        if (this.last) this.jump(this.last.target, action.dir);
+        if (this.last) this.jump(this.last.target, action.dir, this.last.loose);
         else this.overlay.toast(hint("Nothing to repeat yet. Try ", this.settings.nextKey + "h", " first."));
         break;
       case "step":
-        if (this.mode) this.jump(this.mode.target, action.dir);
+        if (this.mode) this.jump(this.mode.target, action.dir, this.mode.loose);
         break;
       case "highlightAll":
-        this.highlightAll(action.target);
+        this.highlightAll(action.target, !!action.loose);
         break;
       case "rotor":
         this.openRotor();
@@ -263,6 +268,7 @@ export class Controller {
 
   private clearCursor(): void {
     this.cursor = null;
+    this.cursorSuspect = null;
     this._overlay?.clearCurrent();
   }
 
@@ -277,7 +283,8 @@ export class Controller {
   }
 
   /** Find the next/previous match. Exposed for tests and the benchmark. */
-  findNext(target: TargetId, dir: Dir, from: Element | null): { entry: Entry; wrapped: boolean } | null {
+  findNext(target: TargetId, dir: Dir, from: Element | null, loose = false): { entry: Entry; wrapped: boolean } | null {
+    if (loose) return this.findNextLoose(target, dir, from);
     const entries = this.index.all();
     const modal = topModal(this.doc);
     const ok = (e: Entry) => entryMatches(e, target) && isNavigable(e, modal);
@@ -319,34 +326,76 @@ export class Controller {
     return null;
   }
 
-  jump(target: TargetId, dir: Dir): void {
+  /**
+   * Loose mode (]B, ]L): real matches and look-alike clickables together, in
+   * page order, so stepping never loses your place among the real ones.
+   */
+  private looseCandidates(target: TargetId): { el: Element; entry?: Entry; suspect?: Suspect }[] {
+    const modal = topModal(this.doc);
+    const real: { el: Element; entry?: Entry; suspect?: Suspect }[] = this.matchesFor(target).map((entry) => ({ el: entry.el, entry }));
+    const fakes = this.ensureSuspects()
+      .filter((s) => s.el.isConnected && (!modal || flatContains(modal, s.el)) && isRendered(s.el))
+      .map((suspect) => ({ el: suspect.el, suspect }));
+    if (!fakes.length) return real;
+    return [...real, ...fakes].sort((a, b) => compareFlat(a.el, b.el));
+  }
+
+  private findNextLoose(target: TargetId, dir: Dir, from: Element | null): { entry: Entry; wrapped: boolean } | null {
+    const list = this.looseCandidates(target);
+    if (!list.length) return null;
+    const asEntry = (c: (typeof list)[number]): Entry => c.entry ?? { el: c.el, role: "generic" };
+    if (!from) {
+      const order = dir === 1 ? list : [...list].reverse();
+      for (const c of order) {
+        const top = viewportRect(c.el).top;
+        if (dir === 1 ? top >= 0 : top < 0) return { entry: asEntry(c), wrapped: false };
+      }
+      return { entry: asEntry(order[0]!), wrapped: true };
+    }
+    if (dir === 1) {
+      const c = list.find((x) => x.el !== from && compareFlat(from, x.el) < 0);
+      return c ? { entry: asEntry(c), wrapped: false } : { entry: asEntry(list[0]!), wrapped: true };
+    }
+    for (let i = list.length - 1; i >= 0; i--) {
+      const x = list[i]!;
+      if (x.el !== from && compareFlat(x.el, from) < 0) return { entry: asEntry(x), wrapped: false };
+    }
+    return { entry: asEntry(list[list.length - 1]!), wrapped: true };
+  }
+
+  jump(target: TargetId, dir: Dir, loose = false): void {
     const def = TARGET_BY_ID[target];
     const from = this.startPoint();
-    const hit = this.findNext(target, dir, from);
+    const hit = this.findNext(target, dir, from, loose);
     if (!hit) {
-      this.overlay.toast(this.noneMessage(target));
+      this.overlay.toast(this.noneMessage(target, loose));
       return;
     }
     const { entry, wrapped } = hit;
     if (entry.el === this.cursor) {
-      this.overlay.toast(`That's the only ${def.singular}`);
+      this.overlay.toast(`That's the only ${loose ? `${def.singular} or look-alike` : def.singular}`);
     } else if (wrapped) {
       this.overlay.toast(dir === 1 ? "Wrapped to top" : "Wrapped to bottom", 1200);
     }
     this.startHint = null;
-    this.setCursor(entry.el, entry);
-    if (this.mode && this.mode.target !== target) this.mode = null;
-    if (from && !wrapped && WARN_ON.has(target) && this.settings.showClickableWarnings) {
+    const fake = loose ? this.suspects.find((s) => s.el === entry.el) : undefined;
+    if (fake) this.setSuspectCursor(fake, target);
+    else this.setCursor(entry.el, entry);
+    if (this.mode && (this.mode.target !== target || this.mode.loose !== loose)) this.mode = null;
+    if (!loose && from && !wrapped && WARN_ON.has(target) && this.settings.showClickableWarnings) {
       this.warnPassed(from, entry.el, dir, target);
     }
   }
 
-  private noneMessage(target: TargetId): string {
+  private noneMessage(target: TargetId, loose = false): string {
     const def = TARGET_BY_ID[target];
     const base = `No ${def.plural} on this page`;
+    if (loose) return `${base}, and nothing that looks clickable either`;
     if ((target === "button" || target === "link") && this.ensureSuspects().length) {
       const n = this.suspects.length;
-      return `${base}, but ${n} element${n > 1 ? "s" : ""} look${n > 1 ? "" : "s"} clickable. Open the rotor (${this.settings.highlightKey}${this.settings.highlightKey}) → Issues.`;
+      const key = (this.settings.targetKeys[target]?.[0] ?? "").toUpperCase();
+      const how = key ? `Use ${this.settings.nextKey}${key} to reach ${n > 1 ? "them" : "it"} anyway.` : `Open the rotor (${this.settings.highlightKey}${this.settings.highlightKey}) → Issues.`;
+      return `${base}, but ${n} element${n > 1 ? "s" : ""} look${n > 1 ? "" : "s"} clickable. ${how}`;
     }
     if (target === "landmark") return `${base}. Screen reader users can't skip to the main content.`;
     return base;
@@ -362,8 +411,23 @@ export class Controller {
     this.overlay.flashWarnings(shown);
   }
 
+  /** Cursor on a look-alike: flagged as fake, and Enter clicks it. */
+  private setSuspectCursor(s: Suspect, target?: TargetId): void {
+    this.cursor = s.el;
+    this.cursorSuspect = s;
+    const text = truncate((s.el.textContent ?? "").replace(/\s+/g, " ").trim(), 60);
+    const name = text || truncate(s.el.getAttribute("title") ?? s.el.getAttribute("aria-label") ?? "", 60);
+    this.overlay.setCurrent(
+      s.el,
+      { role: `${s.el.localName}, not a ${target === "link" ? "link" : "button"}`, name, unnamed: false, fake: true, tags: [{ text: "Enter clicks", warn: true }] },
+      () => this.platform.openExplainer("clickable"),
+    );
+    this.scrollTo(s.el);
+  }
+
   setCursor(el: Element, entry?: Entry): void {
     this.cursor = el;
+    this.cursorSuspect = null;
     const role = entry?.role ?? computeRole(el) ?? "generic";
     const required = NAME_REQUIRED_ROLES.has(role);
     const accName = truncate(accessibleName(el));
@@ -406,6 +470,10 @@ export class Controller {
   private enter(): boolean {
     const el = this.cursor as HTMLElement | null;
     if (!el?.isConnected) return false;
+    if (this.cursorSuspect?.el === el) {
+      this.clickSuspect(el);
+      return true;
+    }
     if (deepActiveElement(this.doc) === el) return false;
     this.selfFocus = true;
     try {
@@ -428,6 +496,30 @@ export class Controller {
     return true;
   }
 
+  /**
+   * A look-alike usually has no keyboard handler, so focusing it does
+   * nothing useful. Play the mouse sequence instead, so handlers bound to
+   * pointerdown/mousedown fire as well as click ones.
+   */
+  private clickSuspect(el: HTMLElement): void {
+    const r = el.getBoundingClientRect();
+    const view = el.ownerDocument.defaultView ?? window;
+    const at = { bubbles: true, cancelable: true, composed: true, view, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, button: 0 };
+    this.selfClick = true;
+    try {
+      const P = (view as typeof window).PointerEvent ?? (view as typeof window).MouseEvent;
+      const M = (view as typeof window).MouseEvent;
+      el.dispatchEvent(new P("pointerdown", { ...at, buttons: 1, pointerType: "mouse", isPrimary: true } as PointerEventInit));
+      el.dispatchEvent(new M("mousedown", { ...at, buttons: 1 }));
+      el.dispatchEvent(new P("pointerup", { ...at, pointerType: "mouse", isPrimary: true } as PointerEventInit));
+      el.dispatchEvent(new M("mouseup", at));
+      el.click();
+    } finally {
+      this.selfClick = false;
+    }
+    this.overlay.toast("Clicked. It isn't a real button, so Squarb clicked it for you; keyboard users without Squarb can't.", 3500);
+  }
+
   // ---------------------------------------------------------------- highlight all
 
   private matchesFor(target: TargetId): Entry[] {
@@ -435,31 +527,35 @@ export class Controller {
     return this.index.all().filter((e) => entryMatches(e, target) && isNavigable(e, modal));
   }
 
-  highlightAll(target: TargetId): void {
+  highlightAll(target: TargetId, loose = false): void {
     const def = TARGET_BY_ID[target];
-    const list = this.matchesFor(target);
+    const list = loose ? this.looseCandidates(target) : this.matchesFor(target).map((entry) => ({ el: entry.el, entry }));
     if (!list.length) {
       this.mode = null;
       this.overlay.clearAll();
-      this.overlay.toast(this.noneMessage(target));
+      this.overlay.toast(this.noneMessage(target, loose));
       return;
     }
-    this.mode = { target };
-    this.last = { target, dir: 1 };
+    this.mode = { target, loose };
+    this.last = { target, dir: 1, loose };
     let unnamed = 0;
-    const items = list.map((e) => {
-      const u = NAME_REQUIRED_ROLES.has(e.role) && !accessibleName(e.el);
+    let fakes = 0;
+    const items = list.map((c) => {
+      if (!c.entry) {
+        fakes++;
+        return { el: c.el, unnamed: false, fake: true };
+      }
+      const u = NAME_REQUIRED_ROLES.has(c.entry.role) && !accessibleName(c.el);
       if (u) unnamed++;
-      return { el: e.el, unnamed: u };
+      return { el: c.el, unnamed: u };
     });
     this.overlay.setAll(items);
     const N = this.settings.nextKey;
     const P = this.settings.prevKey;
-    const count = `${list.length} ${list.length === 1 ? def.singular : def.plural}`;
-    this.overlay.toast(
-      hint(`${count}${unnamed ? ` (${unnamed} unnamed)` : ""} · `, N, " / ", P, " to step · ", "Esc", " to exit"),
-      3000,
-    );
+    const realN = list.length - fakes;
+    const count = `${realN} ${realN === 1 ? def.singular : def.plural}`;
+    const extra = [unnamed ? `${unnamed} unnamed` : "", fakes ? `+ ${fakes} look-alike${fakes > 1 ? "s" : ""}` : ""].filter(Boolean).join(", ");
+    this.overlay.toast(hint(`${count}${extra ? ` (${extra})` : ""} · `, N, " / ", P, " to step · ", "Esc", " to exit"), 3000);
   }
 
   // ---------------------------------------------------------------- rotor
@@ -516,11 +612,9 @@ export class Controller {
     }
     const s = this.suspects.find((x) => x.el === item.el);
     if (s) {
-      this.cursor = null;
-      this._overlay?.clearCurrent();
-      this.startHint = s.el;
-      this.scrollTo(s.el);
-      this.overlay.flashWarnings([{ el: s.el, message: suspectMessage(s) }], 4000);
+      this.startHint = null;
+      this.setSuspectCursor(s);
+      this.overlay.toast(hint(suspectMessage(s) + ". ", "Enter", " clicks it."), 3500);
       return;
     }
     this.setCursor(item.el);

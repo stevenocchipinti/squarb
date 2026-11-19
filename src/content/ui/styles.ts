@@ -108,8 +108,9 @@ export const CSS = /* css */ `
   font: 600 10px/16px var(--font);
 }
 .label .tag.warn { background: var(--warn); color: var(--ink); }
-.label.warn, .label.unnamed { background: #2b1606; border-color: var(--warn); }
-.label.warn .role, .label.unnamed .role { color: var(--warn); }
+.label.warn, .label.unnamed, .label.fake { background: #2b1606; border-color: var(--warn); }
+.label.warn .role, .label.unnamed .role, .label.fake .role { color: var(--warn); }
+.ring.fake { border-style: dashed; border-color: var(--warn); }
 .label.fading { opacity: 0; transition: opacity 400ms ease-in; }
 .label a, .label button.why {
   all: unset;
@@ -269,7 +270,7 @@ export const CSS = /* css */ `
 
 @media (forced-colors: active) {
   .ring { border-color: Highlight; outline-color: CanvasText; box-shadow: none; }
-  .ring.warn, .ring.unnamed { border-color: Mark; }
+  .ring.warn, .ring.unnamed, .ring.fake { border-color: Mark; }
   .label, .toast, .chip, .badge { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
   .label .role, .label .tag { color: Highlight; background: Canvas; }
   .panel { border: 1px solid CanvasText; }
